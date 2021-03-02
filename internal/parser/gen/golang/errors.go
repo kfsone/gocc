@@ -47,6 +47,11 @@ import (
 	"{{.}}"
 )
 
+// Severity is the prefix given to error messages in the string representation.
+// It's exposed as a var so that it can be changed during testing to avoid the CI
+// system thinking it's seeing actual errors.
+var Severity = "error"
+
 type ErrorSymbol interface {
 }
 
@@ -102,12 +107,15 @@ func DescribeExpected(tokens []string) string {
 	}
 }
 
+// How to identify the end-of-file token in errors.
+var EOFRepresentation = "<EOF>"
+
 func DescribeToken(tok *token.Token) string {
 	switch tok.Type {
 	case token.INVALID:
 		return fmt.Sprintf("unknown/invalid token %q", tok.Lit)
 	case token.EOF:
-		return "end-of-file"
+		return fmt.Sprintf(EOFRepresentation)
 	default:
 		return fmt.Sprintf("%q", tok.Lit)
 	}
@@ -116,7 +124,7 @@ func DescribeToken(tok *token.Token) string {
 func (e *Error) Error() string {
 	// identify the line and column of the error in 'gnu' style so it can be understood
 	// by editors and IDEs; user will need to prefix it with a filename.
-	text := fmt.Sprintf("%d:%d: error: ", e.ErrorToken.Pos.Line, e.ErrorToken.Pos.Column)
+	text := fmt.Sprintf("%d:%d: %s: ", e.ErrorToken.Pos.Line, e.ErrorToken.Pos.Column, Severity)
 
 	if e.Err != nil {
 		// Custom error specified, e.g. by << nil, errors.New("missing newline") >>

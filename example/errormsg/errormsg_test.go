@@ -42,18 +42,18 @@ func parse(t *testing.T, code string, expectPass bool) {
 
 func TestParsedErrors_passes(t *testing.T) {
 	// Validate basic assumptions, that supposed-good strings parse ok.
-	candidates := []string{
-		"var abcd = 123;",
-		"  var  _  :=  abcd  ;",
-		"var a  = 1.23 ;",
-		"var x;",
-	}
-	for _, candidate := range candidates {
+		candidates := []string{
+			"var abcd = 123;",
+			"  var  _  :=  abcd  ;",
+			"var a  = 1.23 ;",
+			"var x;",
+		}
+		for _, candidate := range candidates {
 		candidate := candidate
-		t.Run(candidate, func(t *testing.T) {
-			parse(t, candidate, true)
-		})
-	}
+			t.Run(candidate, func(t *testing.T) {
+				parse(t, candidate, true)
+			})
+		}
 }
 
 func TestParsedError_errors(t *testing.T) {
@@ -70,14 +70,14 @@ func TestParsedError_errors(t *testing.T) {
 		candidate := candidate
 		t.Run(candidate, func(t *testing.T) {
 			parse(t, candidate, false)
-		})
+	})
 	}
 }
 
 func TestParsedErrors_ExtraTokens(t *testing.T) {
 	// Input is supposed to end at ';', so errors.Errors will have an
 	// empty expected tokens list.
-	parse(t, "var end = 1; oops", false)
+		parse(t, "var end = 1; oops", false)
 }
 
 func mockToken(tokenType token.Type, lit string, line, col int) *token.Token {
