@@ -12,41 +12,29 @@ test: ## run all unit tests
 gofmt: ## format all go files
 	gofmt -l -s -w .
 
-govet: ## run go's code vetting on all code
-	go vet ./...
+govet:
+	go vet -methods=false .
 
-ci-lint: ## see https://golangci-lint.run/, applies .golangci.yml
-	golangci-lint run
+errcheck:
+	go get github.com/kisielk/errcheck@v1.2.0
+	errcheck -exclude .errcheck-ignore ./...
 
-lint: govet ci-lint
+lint: govet errcheck ## run linter checks
 
-goimports: ## sort and separate imports
+goimports:  ## sort all imports
 	go get golang.org/x/tools/cmd/goimports
 	goimports -l -w .
-
-goclean: gofmt goimports ## apply go style rules to source
 
 regenerate: ## regenerate all example and test files
 	make install
 	make -C example regenerate
 	make -C internal/test regenerate
-	make goclean
-	make lint
-
-check: ## regenerate, lint and run a terse version of check
-	@# quietly install and regenerate
-	@go mod tidy
-	@make --quiet install
-	@make --quiet -C example regenerate
-	@make --quiet -C internal/test regenerate
-	@# promote formatting changes to errors
-	@if [ -n "$(gofmt -l -s .)" ]; then { echo "gofmt errors:"; gofmt -d -l -s . ; exit 1; }; fi
-	@if [ -n "$(gomports -l . )" ]; then { echo "goimports errors:"; goimports -l . ; exit 1; }; fi
-	@make --quiet lint
-	@go test ./... | grep -v "\[no test"
+	make gofmt
+	make goimports
 
 ci: ## run all ci checks
 	make regenerate
-	@git diff --exit-code . || { echo "ERROR: commit and working copy differ after 'make regenerate'"; exit 22 ; }
+	git diff --exit-code . || { echo "ERROR: commit and working copy differ after 'make regenerate'"; exit 22 ; }
 	make test
-	@git diff --exit-code . || { echo "ERROR: commit and working copy differ after 'make test'" ; exit 22 ; }
+	golangci-lint run
+	git diff --exit-code . || { echo "ERROR: commit and working copy differ after 'make ci'" ; exit 2  ; }
