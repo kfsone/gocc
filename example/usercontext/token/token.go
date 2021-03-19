@@ -21,6 +21,10 @@ const (
 	EOF
 )
 
+func (t *Token) String() string {
+	return string(t.Lit)
+}
+
 type Pos struct {
 	Offset  int
 	Line    int
