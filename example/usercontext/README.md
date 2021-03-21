@@ -1,41 +1,69 @@
-token.Context and $Context
-==========================
+Lexical and Parser user-defined context data
+============================================
 
-There are circumstances where you may need to provide stateful context
-your parser actions. This can be done through the Parser.Context
-field and then accessed in the actions with $Context, where it will be
-exposed to you as an `interface{}`.
+For advanced use cases, it is sometimes helpful to be able to have
+additional data available in either the parsing context, such as
+sdt actions, or the lexical context, on the lexer or the tokens
+it produces.
 
-This example demonstrates using this to track filenames in concurrent
-parsers.
+Distinction between Lexical and Parser Context
+----------------------------------------------
 
-See cmd/main.go for a minor example of using context, to execute it:
+Both `parser` and `token` define `Context` as `interface{}`.
 
+Gocc does not care if the parser and lexical contexts are the same, or
+whether you use one and not the other.
+
+Lexical Context
+---------------
+
+When the lexer.Lexer object is configured with a non-nil Context value,
+the value will be assigned to the Pos.Context property of every token
+the lexer generates.
+
+If you are parsing multiple files, this could allow you to inform the
+user that tokenA is redeclared in file2.txt after being previously
+declared in file1.txt, rather than simply "I've seen tokenA before".
+
+Assigning:
 ```
-	go run ./cmd
+	// assigning
+	l := lexer.NewLexer()
+	l.Context = &MyContext{ /* populate fields */ }
+	// or just
+	l.Context = filename
 ```
 
-Lexer and Token Context fields
-------------------------------
-
-In addition to the parser having a Context field, the Lexer also
-has one -- to facilitate asts that span multiple files/lexes.
-
-This value is automatically copied into the Pos of every token
-produced by a lexer. So for a given `Attrib` argument:
-
+Use (assumes MyContext has method 'Source()' that returns filename)
 ```
-	func NewIdentifier(nameAttr Attrib) (*Identifier, error) {
-		newToken := nameAttr.(*token.Token)
-		name     := string(newToken.Lit)
-		if prevToken, exists := identifierTable[name]; exists {
-			oldPos  := prevToken.Pos
-			newPos  := newToken.Pos
-			oldFile := oldPos.Context.(Sourcer).Source()
-			newFile := newPos.Context.(Sourcer).Source()
-			/* ... */
-			return nil, err
-		}
-		/* ... */
-	}
+	func duplicate(newToken, oldToken *token.Token) error {
+		newPos, oldPos := newToken.Pos, oldToken.Pos
+
+		return fmt.Errorf("%s:%d:%d: error: '%s' redefined.\n%s:%d:%d: previous definition",
+			newPos.Context.(*MyContext).Source(), newPos.Line, newPos.Column,
+			string(newToken.Lit),
+			oldPos.Context.(*MyContext).Source(), oldPos.Line, oldPos.Column)
 ```
+
+Parser Context
+--------------
+
+This allows you to surface contextual information when invoking SDT actions. It
+corresponds to the `Context` property of the `parser.Parser` class, and can be
+accessed with the SDT token `$Context`.
+
+Example:
+
+_bnf_
+```
+	Identifier: identifier << ast.NewIdentifier($0, $Context);
+```
+
+_ast/main.go_
+```
+	func NewIdentifier(nameAttr Attrib, context interface{}) (string, error) {
+		name := string(nameAttr.(*token.Token).Lit)
+		if previous, exists := context.(*ParseContext).Identifiers[name]; exists {
+			...
+```
+

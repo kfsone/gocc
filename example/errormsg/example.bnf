@@ -13,6 +13,7 @@ identifier : _letter { _letter } ;
 float : _digit { _digit } '.' { _digit } ;
 integer : _digit { _digit } ;
 
+
 Declaration
 	: "var" Name Equal Default ";"
 	| "var" Name ";"

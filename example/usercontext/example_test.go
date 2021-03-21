@@ -65,7 +65,7 @@ func TestTokenContext(t *testing.T) {
 			}
 			// not sure why err.ErrorToken has 12 in its pos.Column field, but currently
 			// this is correct.
-			const expected = "1:12: error: sixbyseven: NewIdentifier expected ParserContext, got <nil>"
+			const expected = `1:12: error: sixbyseven: NewIdentifier expected ParserContext, got <nil>`
 			if err.Error() != expected {
 				t.Fatalf("incorrect error:\nexpected: %q\nactual  : %q", expected, err.Error())
 			}

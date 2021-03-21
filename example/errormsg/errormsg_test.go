@@ -10,13 +10,16 @@ import (
 	"github.com/goccmack/gocc/example/errormsg/token"
 )
 
+// assertEqual is a crude implementation of testify's assert.Equal.
 func assertEqual(t *testing.T, lhs interface{}, rhs interface{}) {
 	t.Helper()
+
 	if lhs != rhs {
 		t.Fatalf("mismatch: expected %v, got %v", lhs, rhs)
 	}
 }
 
+// parse boolean-checks the parseability of a given string against 'expectPass'.
 func parse(t *testing.T, code string, expectPass bool) {
 	t.Helper()
 
@@ -37,54 +40,44 @@ func parse(t *testing.T, code string, expectPass bool) {
 	}
 }
 
-func TestParsedErrors(t *testing.T) {
-	t.Run("pass", func(t *testing.T) {
-		candidates := []string{
-			"var abcd = 123;",
-			"  var  _  :=  abcd  ;",
-			"var a  = 1.23 ;",
-			"var x;",
-		}
-		for _, candidate := range candidates {
-			candidate := candidate
-			t.Run(candidate, func(t *testing.T) {
-				parse(t, candidate, true)
-			})
-		}
-	})
+func TestParsedErrors_passes(t *testing.T) {
+	// Validate basic assumptions, that supposed-good strings parse ok.
+	candidates := []string{
+		"var abcd = 123;",
+		"  var  _  :=  abcd  ;",
+		"var a  = 1.23 ;",
+		"var x;",
+	}
+	for _, candidate := range candidates {
+		candidate := candidate
+		t.Run(candidate, func(t *testing.T) {
+			parse(t, candidate, true)
+		})
+	}
+}
 
-	t.Run("EOF", func(t *testing.T) {
-		parse(t, "var a = 1", false) // missing ';'
-	})
+func TestParsedError_errors(t *testing.T) {
+	// Verify that supposed-bad strings generate errors.
+	candidates := []string{
+		"var a = 1",    // missing ';'.
+		"var a = 1\n",  // '\n' not listsed in grammar.
+		"let a = 1;",   // first option is var and only var.
+		"var = 1;",     // second field must be identifier or '_'.
+		"var _ = ;",    // third field must be one of '=', ':=' or ';'.
+		"var xyz = {}", // fourth, 'Default' has four candidates.
+	}
+	for _, candidate := range candidates {
+		candidate := candidate
+		t.Run(candidate, func(t *testing.T) {
+			parse(t, candidate, false)
+		})
+	}
+}
 
-	t.Run("INVALID", func(t *testing.T) {
-		// we never specified \n so it's an unknown symbol.
-		parse(t, "var a = 1\n", false) // \n instead of ;
-	})
-
-	t.Run("one candidate", func(t *testing.T) {
-		// first option is var and only var.
-		parse(t, "let a = 1;", false)
-	})
-
-	t.Run("two candidates", func(t *testing.T) {
-		// second field can be an identifier or _
-		parse(t, "var = 1;", false)
-	})
-
-	t.Run("three candidates", func(t *testing.T) {
-		// third field can be one of '=', ':=' or ';'.
-		parse(t, "var _ = ;", false)
-	})
-
-	t.Run("four candidates", func(t *testing.T) {
-		// 'Default' has four possibilities.
-		parse(t, "var xyz = {}", false)
-	})
-
-	t.Run("extra tokens", func(t *testing.T) {
-		parse(t, "var end = 1; oops", false)
-	})
+func TestParsedErrors_ExtraTokens(t *testing.T) {
+	// Input is supposed to end at ';', so errors.Errors will have an
+	// empty expected tokens list.
+	parse(t, "var end = 1; oops", false)
 }
 
 func mockToken(tokenType token.Type, lit string, line, col int) *token.Token {
@@ -92,45 +85,32 @@ func mockToken(tokenType token.Type, lit string, line, col int) *token.Token {
 }
 
 func TestErrors_DescribeExpected(t *testing.T) {
-	t.Run("none", func(t *testing.T) {
-		assertEqual(t, "unexpected additional tokens", errors.DescribeExpected([]string{}))
-	})
-	t.Run("single", func(t *testing.T) {
-		assertEqual(t, "expected TREE", errors.DescribeExpected([]string{"TREE"}))
-	})
-	t.Run("either", func(t *testing.T) {
-		assertEqual(t, "expected either TREE or ENT", errors.DescribeExpected([]string{"TREE", "ENT"}))
-	})
-	t.Run("oxford comma", func(t *testing.T) {
-		t.Run("list of 3", func(t *testing.T) {
-			assertEqual(t, "expected one of TREE, ENT or i am groot", errors.DescribeExpected([]string{"TREE", "ENT", "i am groot"}))
-		})
-		t.Run("longer list", func(t *testing.T) {
-			assertEqual(t, "expected one of a, b, c, d, e, f, or g", errors.DescribeExpected([]string{"a", "b", "c", "d", "e", "f", "g"}))
-		})
-	})
+	assertEqual(t, "unexpected additional tokens", errors.DescribeExpected([]string{}))
+	assertEqual(t, "expected TREE", errors.DescribeExpected([]string{"TREE"}))
+	assertEqual(t, "expected either TREE or ENT", errors.DescribeExpected([]string{"TREE", "ENT"}))
+	assertEqual(t, "expected one of TREE, ENT or i am groot", errors.DescribeExpected([]string{"TREE", "ENT", "i am groot"}))
+	assertEqual(t, "expected one of a, b, c, d, e, f, or g", errors.DescribeExpected([]string{"a", "b", "c", "d", "e", "f", "g"}))
 }
 
 func TestErrors_DescribeToken(t *testing.T) {
 	t.Run("eof", func(t *testing.T) {
 		tok := mockToken(token.EOF, "-not-eof-", 1, 1)
-		assertEqual(t, errors.EOFRepresentation, errors.DescribeToken(tok))
+		assertEqual(t, "end-of-file", errors.DescribeToken(tok))
 	})
+
 	t.Run("eof", func(t *testing.T) {
 		tok := mockToken(token.INVALID, "-not-eof-", 1, 1)
 		assertEqual(t, "unknown/invalid token \"-not-eof-\"", errors.DescribeToken(tok))
 	})
+
 	t.Run("eof", func(t *testing.T) {
 		tok := mockToken(9001, "-not-eof-", 1, 1)
 		assertEqual(t, "\"-not-eof-\"", errors.DescribeToken(tok))
 	})
 }
 
-// More direct testing by manually constructing Error objects.
 func TestErrors_Error(t *testing.T) {
-	// anticipated messages are based on this assumption.
-	assertEqual(t, "error", errors.Severity)
-
+	// Direct testing by manually constructing Error objects.
 	t.Run("custom error", func(t *testing.T) {
 		err := &errors.Error{ErrorToken: mockToken(999, "", 6, 7), Err: fmt.Errorf("source on fire")}
 		if err == nil {
@@ -145,15 +125,23 @@ func TestErrors_Error(t *testing.T) {
 	})
 
 	t.Run("unexpected EOF", func(t *testing.T) {
-		if errors.EOFRepresentation != "<EOF>" {
-			panic("EOFRepresentation has changed")
-		}
 		err := &errors.Error{ErrorToken: mockToken(token.EOF, "", 7, 11), ExpectedTokens: []string{"something-else"}}
-		assertEqual(t, "7:11: error: expected something-else; got: <EOF>", err.Error())
+		assertEqual(t, "7:11: error: expected something-else; got: end-of-file", err.Error())
 	})
 
 	t.Run("nominal error", func(t *testing.T) {
 		err := &errors.Error{ErrorToken: mockToken(100, "42", 7, 6), ExpectedTokens: []string{"var", "let", "struct"}}
 		assertEqual(t, "7:6: error: expected one of var, let or struct; got: \"42\"", err.Error())
 	})
+}
+
+func TestErrors_ErrorConext(t *testing.T) {
+	// "Before": error without a way to know the source file.
+	err := &errors.Error{ErrorToken: mockToken(111, "moyles", 16, 5), ExpectedTokens: []string{"ant", "dec"}}
+	assertEqual(t, `16:5: error: expected either ant or dec; got: "moyles"`, err.Error())
+
+	// Now attach a Context that implements `Source() string` and verify we
+	// get a proper File-Line-Column error using the same err.
+	err.ErrorToken.Context = &lexer.SourceContext{Filepath: "/addicted/to/plaice.lyrics"}
+	assertEqual(t, `/addicted/to/plaice.lyrics:16:5: error: expected either ant or dec; got: "moyles"`, err.Error())
 }
