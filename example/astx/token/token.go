@@ -34,13 +34,7 @@ type Pos struct {
 }
 
 func (p Pos) String() string {
-	// If the context provides a filename, provide a human-readable File:Line:Column representation.
-	switch src := p.Context.(type) {
-	case Sourcer:
-		return fmt.Sprintf("%s:%d:%d", src.Source(), p.Line, p.Column)
-	default:
-		return fmt.Sprintf("Pos(offset=%d, line=%d, column=%d)", p.Offset, p.Line, p.Column)
-	}
+	panic("you shouldn't be calling me")
 }
 
 type TokenMap struct {

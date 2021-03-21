@@ -86,7 +86,7 @@ const (
 )
 
 func (t *Token) String() string {
-	return string(t.Lit)
+	panic("use IDValue instead")
 }
 
 type Pos struct {
@@ -97,7 +97,7 @@ type Pos struct {
 }
 
 func (p Pos) String() string {
-	panic("you shouldn't be calling me")
+	return fmt.Sprintf("Pos(offset=%d, line=%d, column=%d)", p.Offset, p.Line, p.Column)
 }
 
 type TokenMap struct {

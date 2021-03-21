@@ -3,6 +3,7 @@
 package token
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"unicode/utf8"
@@ -33,13 +34,7 @@ type Pos struct {
 }
 
 func (p Pos) String() string {
-	// If the context provides a filename, provide a human-readable File:Line:Column representation.
-	switch src := p.Context.(type) {
-	case Sourcer:
-		return fmt.Sprintf("%s:%d:%d", src.Source(), p.Line, p.Column)
-	default:
-		return fmt.Sprintf("Pos(offset=%d, line=%d, column=%d)", p.Offset, p.Line, p.Column)
-	}
+	panic("you shouldn't be calling me")
 }
 
 type TokenMap struct {
@@ -67,6 +62,17 @@ func (m TokenMap) TokenString(tok *Token) string {
 
 func (m TokenMap) StringType(typ Type) string {
 	return fmt.Sprintf("%s(%d)", m.Id(typ), typ)
+}
+
+// Equal implements the Equal interface for Token, returning true if the
+// token Type and Lit are matches.
+func (t *Token) Equal(rhs interface{}) bool {
+	switch rhsT := rhs.(type) {
+	case *Token:
+		return t == rhsT || (t.Type == rhsT.Type && bytes.Equal(t.Lit, rhsT.Lit))
+	default:
+		return false
+	}
 }
 
 // CharLiteralValue returns the string value of the char literal.
